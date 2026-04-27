@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wayfarer · A text adventure engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Cormorant+Unicase:wght@500;600;700&family=IM+Fell+English:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F5EDD7;
+  --paper-dark:#EAE0C5;
+  --ink:#2A1F12;
+  --ink-soft:#5C4A33;
+  --ink-faint:#8C7A5E;
+  --rule:#C7B98F;
+  --rule-soft:#D9CFA8;
+  --accent:#8B2E1A;
+  --gold:#A8842E;
+  --shadow:inset 0 0 60px rgba(80,55,25,.12), 0 4px 24px rgba(60,40,20,.15);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{
+  background:#3D2F1E;
+  background-image:
+    radial-gradient(circle at 50% 50%, #4A3826 0%, #2D2014 100%);
+  color:var(--ink);
+  font-family:'Cormorant Garamond',serif;
+  font-size:18px;
+  line-height:1.65;
+  min-height:100vh;
+  padding:24px 16px;
+}
+
+.book{
+  max-width:780px;
+  margin:0 auto;
+  background:var(--paper);
+  background-image:
+    radial-gradient(ellipse at top, rgba(255,250,230,.4) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom, rgba(120,90,40,.06) 0%, transparent 50%);
+  box-shadow:var(--shadow);
+  position:relative;
+  min-height:80vh;
+}
+
+/* Subtle paper texture using SVG noise */
+.book::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='0.85' numOctaves='2' seed='5'/><feColorMatrix values='0 0 0 0 0.6  0 0 0 0 0.5  0 0 0 0 0.3  0 0 0 0.06 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+  opacity:.4;
+  mix-blend-mode:multiply;
+}
+
+/* ==================== HEADER ==================== */
+.frontmatter{
+  padding:48px 64px 36px;
+  text-align:center;
+  border-bottom:1px solid var(--rule);
+  position:relative;
+}
+.title-mark{
+  font-family:'Cormorant Unicase',serif;
+  font-size:11px;
+  letter-spacing:.32em;
+  color:var(--gold);
+  margin-bottom:14px;
+  text-transform:uppercase;
+}
+.title-mark::before{content:"❦  "}
+.title-mark::after{content:"  ❦"}
+.book-title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:54px;
+  font-weight:600;
+  letter-spacing:-.01em;
+  line-height:1;
+  margin-bottom:8px;
+  font-style:italic;
+}
+.book-title .word-2{
+  display:block;
+  font-style:normal;
+  font-size:80%;
+}
+.book-subtitle{
+  font-family:'IM Fell English',serif;
+  font-style:italic;
+  font-size:18px;
+  color:var(--ink-soft);
+  margin-bottom:20px;
+}
+.divider{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  justify-content:center;
+  font-family:'IM Fell English',serif;
+  color:var(--gold);
+}
+.divider::before,.divider::after{
+  content:"";
+  height:1px;
+  background:var(--rule);
+  flex:1;
+  max-width:120px;
+}
+.divider .ornament{font-size:20px}
+
+/* ==================== TOP CONTROLS ==================== */
+.tools{
+  position:absolute;
+  top:18px;
+  right:24px;
+  display:flex;
+  gap:6px;
+}
+.tool-btn{
+  background:transparent;
+  border:1px solid var(--rule);
+  color:var(--ink-soft);
+  padding:6px 14px;
+  font:inherit;
+  font-family:'IM Fell English',serif;
+  font-size:13px;
+  font-style:italic;
+  cursor:pointer;
+  border-radius:2px;
+  transition:all .15s;
+}
+.tool-btn:hover{
+  background:var(--ink);
+  color:var(--paper);
+  border-color:var(--ink);
+}
+.tool-btn.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+/* ==================== SCENE ==================== */
+.story-page{
+  padding:36px 64px 48px;
+}
+
+.scene-meta{
+  text-align:center;
+  margin-bottom:18px;
+  font-family:'Cormorant Unicase',serif;
+  font-size:10px;
+  letter-spacing:.32em;
+  color:var(--gold);
+  text-transform:uppercase;
+}
+
+.scene-title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:30px;
+  font-weight:500;
+  letter-spacing:-.005em;
+  text-align:center;
+  margin-bottom:6px;
+  font-style:italic;
+}
+
+.scene-subtitle{
+  text-align:center;
+  font-family:'IM Fell English',serif;
+  font-style:italic;
+  font-size:15px;
+  color:var(--ink-soft);
+  margin-bottom:24px;
+}
+
+.scene-divider{
+  text-align:center;
+  margin:18px 0 24px;
+  color:var(--gold);
+  font-size:18px;
+}
+.scene-divider::before{content:"~ ⁂ ~"}
+
+.scene-text{
+  font-size:18.5px;
+  text-align:justify;
+  hyphens:auto;
+  margin-bottom:24px;
+  color:var(--ink);
+}
+.scene-text p{margin-bottom:14px}
+.scene-text p:first-of-type::first-letter{
+  font-family:'Cormorant Garamond',serif;
+  font-size:64px;
+  float:left;
+  line-height:.85;
+  margin:6px 8px 0 0;
+  font-weight:600;
+  color:var(--accent);
+}
+
+.scene-image-frame{
+  margin:0 auto 28px;
+  text-align:center;
+}
+.scene-image-frame .glyph{
+  font-family:'IM Fell English',serif;
+  font-size:42px;
+  color:var(--gold);
+  letter-spacing:.1em;
+}
+
+/* ==================== CHOICES ==================== */
+.choices{
+  margin-top:32px;
+  padding-top:24px;
+  border-top:1px solid var(--rule);
+}
+.choice{
+  display:block;
+  width:100%;
+  text-align:left;
+  background:transparent;
+  border:0;
+  font:inherit;
+  font-family:'Cormorant Garamond',serif;
+  font-size:19px;
+  color:var(--ink);
+  cursor:pointer;
+  padding:14px 16px 14px 48px;
+  position:relative;
+  transition:all .15s;
+  border-bottom:1px solid var(--rule-soft);
+  font-style:italic;
+}
+.choice:last-child{border-bottom:0}
+.choice::before{
+  content:"❧";
+  position:absolute;
+  left:18px;
+  top:50%;
+  transform:translateY(-50%);
+  color:var(--gold);
+  font-size:18px;
+  font-style:normal;
+  transition:transform .2s;
+}
+.choice:hover{
+  background:var(--paper-dark);
+  color:var(--accent);
+}
+.choice:hover::before{
+  transform:translateY(-50%) translateX(4px);
+  color:var(--accent);
+}
+.choice.disabled{
+  opacity:.4;
+  cursor:not-allowed;
+  font-style:italic;
+}
+.choice.disabled::before{content:"✗"}
+.choice .req{
+  display:block;
+  font-family:'IM Fell English',serif;
+  font-size:13px;
+  color:var(--ink-faint);
+  font-style:italic;
+  margin-top:2px;
+}
+
+.ending-note{
+  margin-top:32px;
+  text-align:center;
+  font-family:'Cormorant Unicase',serif;
+  font-size:14px;
+  letter-spacing:.32em;
+  color:var(--accent);
+  text-transform:uppercase;
+}
+.ending-note .underline::before{content:"— "}
+.ending-note .underline::after{content:" —"}
+
+.restart-row{
+  margin-top:24px;
+  text-align:center;
+  display:flex;
+  gap:14px;
+  justify-content:center;
+}
+.restart-btn{
+  font-family:'IM Fell English',serif;
+  font-style:italic;
+  font-size:15px;
+  background:var(--ink);
+  color:var(--paper);
+  padding:9px 22px;
+  border:0;
+  cursor:pointer;
+  border-radius:2px;
+}
+.restart-btn:hover{background:var(--accent)}
+.restart-btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+.restart-btn.ghost:hover{background:var(--ink);color:var(--paper)}
+
+/* ==================== INVENTORY / STATE ==================== */
+.statusbar{
+  margin:0 64px;
+  padding:14px 0;
+  border-top:1px solid var(--rule-soft);
+  border-bottom:1px solid var(--rule-soft);
+  display:flex;
+  gap:24px;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  justify-content:space-between;
+  font-size:14px;
+}
+.status-block{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.status-block .label{
+  font-family:'Cormorant Unicase',serif;
+  font-size:9px;
+  letter-spacing:.3em;
+  color:var(--gold);
+  text-transform:uppercase;
+}
+.status-block .body{
+  font-family:'IM Fell English',serif;
+  font-style:italic;
+  color:var(--ink-soft);
+}
+.inventory-list .item{
+  display:inline-block;
+  background:var(--paper-dark);
+  padding:2px 10px;
+  border-radius:2px;
+  margin:2px 4px 2px 0;
+  border:1px solid var(--rule);
+  font-family:'IM Fell English',serif;
+  color:var(--ink);
+  font-size:13px;
+}
+.inventory-list .empty{font-style:italic;color:var(--ink-faint)}
+
+.health-bar{
+  width:120px;
+  height:6px;
+  background:var(--rule);
+  border-radius:3px;
+  overflow:hidden;
+}
+.health-bar .fill{
+  height:100%;
+  background:var(--accent);
+  transition:width .3s;
+}
+
+/* ==================== EDITOR MODE ==================== */
+.editor-screen{
+  padding:24px 64px 48px;
+  display:none;
+}
+.editor-screen.active{display:block}
+.editor-screen h2{
+  font-family:'Cormorant Garamond',serif;
+  font-style:italic;
+  font-size:32px;
+  text-align:center;
+  margin-bottom:6px;
+}
+.editor-screen .ed-sub{
+  text-align:center;
+  font-family:'IM Fell English',serif;
+  font-style:italic;
+  color:var(--ink-soft);
+  margin-bottom:24px;
+}
+.editor-screen .help-block{
+  background:var(--paper-dark);
+  border:1px solid var(--rule);
+  padding:16px 20px;
+  margin-bottom:18px;
+  font-family:'IM Fell English',serif;
+  font-size:14px;
+  line-height:1.7;
+}
+.editor-screen .help-block code{
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  background:var(--paper);
+  padding:1px 5px;
+  border:1px solid var(--rule);
+  border-radius:2px;
+  font-style:normal;
+}
+.editor-screen textarea{
+  width:100%;
+  min-height:380px;
+  padding:14px 16px;
+  border:1px solid var(--rule);
+  background:var(--paper);
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px;
+  line-height:1.6;
+  color:var(--ink);
+  resize:vertical;
+  border-radius:2px;
+}
+.editor-screen textarea:focus{outline:0;border-color:var(--accent)}
+.editor-actions{
+  display:flex;
+  gap:8px;
+  margin-top:14px;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+}
+.editor-screen .err{
+  background:rgba(139,46,26,.1);
+  border:1px solid var(--accent);
+  color:var(--accent);
+  padding:10px 14px;
+  margin-top:10px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+}
+
+.scene-screen.hidden{display:none}
+
+/* ==================== AUTHORSHIP ==================== */
+.colophon{
+  text-align:center;
+  padding:18px 64px 48px;
+  border-top:1px solid var(--rule-soft);
+  font-family:'IM Fell English',serif;
+  font-style:italic;
+  font-size:13px;
+  color:var(--ink-faint);
+}
+.colophon .ornament{color:var(--gold);font-size:16px;margin:0 8px}
+
+@media(max-width:600px){
+  .frontmatter,.story-page,.editor-screen,.colophon{padding-left:28px;padding-right:28px}
+  .statusbar{margin:0 28px}
+  .book-title{font-size:38px}
+  .scene-text{font-size:17px}
+  .tools{position:static;justify-content:center;margin-top:18px}
+}
+</style>
+</head>
+<body>
+
+<div class="book">
+
+<div class="tools">
+  <button class="tool-btn active" data-screen="play">Play</button>
+  <button class="tool-btn" data-screen="editor">Editor</button>
+  <button class="tool-btn" id="loadStoryBtn">Load story</button>
+</div>
+<input type="file" id="fileInput" accept=".json" style="display:none">
+
+<!-- =================== FRONTMATTER =================== -->
+<div class="frontmatter" id="frontmatter">
+  <div class="title-mark">A Text Adventure</div>
+  <h1 class="book-title" id="bookTitle"><span class="word-1">Way<span class="word-2">farer</span></span></h1>
+  <p class="book-subtitle" id="bookSubtitle">A choose-your-own-path engine</p>
+  <div class="divider"><span class="ornament">⁂</span></div>
+</div>
+
+<!-- =================== PLAY SCREEN =================== -->
+<div class="scene-screen" id="sceneScreen">
+  <div class="statusbar" id="statusbar"></div>
+  <div class="story-page">
+    <div class="scene-meta" id="sceneMeta">Chapter I</div>
+    <h2 class="scene-title" id="sceneTitle">A Beginning</h2>
+    <div class="scene-image-frame" id="sceneImage"></div>
+    <div class="scene-divider"></div>
+    <div class="scene-text" id="sceneText"></div>
+    <div class="choices" id="choicesList"></div>
+    <div class="ending-note" id="endingNote" style="display:none"></div>
+    <div class="restart-row" id="restartRow" style="display:none"></div>
+  </div>
+</div>
+
+<!-- =================== EDITOR SCREEN =================== -->
+<div class="editor-screen" id="editorScreen">
+  <h2>Story Editor</h2>
+  <p class="ed-sub">Write your own adventure as JSON</p>
+  <div class="help-block">
+    <strong>Story format:</strong> a JSON object with <code>title</code>, <code>subtitle</code>, <code>start</code>, and <code>scenes</code>.
+    Each scene has <code>id</code>, <code>title</code>, <code>text</code>, <code>choices</code>, and optional <code>chapter</code>, <code>image</code> (1-2 char glyph), <code>ending</code> (true/false).
+    Choices may have <code>requires</code> (item name) and <code>effects</code> like <code>{"add":"key"}</code>, <code>{"remove":"key"}</code>, or <code>{"health":-10}</code>.
+  </div>
+  <textarea id="editorText" spellcheck="false"></textarea>
+  <div id="editorErr"></div>
+  <div class="editor-actions">
+    <button class="restart-btn ghost" id="exportStoryBtn">Export JSON</button>
+    <button class="restart-btn ghost" id="resetEditorBtn">Reset to default</button>
+    <button class="restart-btn" id="loadInEditorBtn">Test play it →</button>
+  </div>
+</div>
+
+<div class="colophon" id="colophonText">
+  <span class="ornament">❦</span> Wayfarer Engine <span class="ornament">❦</span><br>
+  <span style="font-size:11px">Stories are JSON. Switch to Editor to write your own.</span>
+</div>
+
+</div>
+
+<script>
+//============================================================
+// DEFAULT STORY
+//============================================================
+const DEFAULT_STORY = {
+  title: "The Lantern in the Wood",
+  subtitle: "A short tale of choices, in three chapters",
+  start: "forest_edge",
+  scenes: [
+    {
+      id: "forest_edge",
+      chapter: "I · The Forest's Edge",
+      title: "Where the path begins",
+      image: "❦",
+      text: "Y" + "ou stand at the edge of the Old Wood as twilight settles. The trees are tall and silent, and the path before you forks. To your left, a faint trail leads toward a thin column of smoke rising in the distance — perhaps a cottage. To your right, the path descends into the wood proper, where you can just glimpse, between the trunks, the warm glow of a lantern hung from a branch. Behind you lies the road back to the village.\n\nA chill breeze stirs. You feel for the items in your pack: an apple, and a worn coin your grandmother gave you for luck.",
+      choices: [
+        { text: "Follow the smoke toward the cottage.", goto: "cottage_door" },
+        { text: "Walk toward the lantern in the wood.", goto: "lantern_clearing" },
+        { text: "Turn back. This is no night for adventures.", goto: "village_safety" }
+      ]
+    },
+    {
+      id: "cottage_door",
+      chapter: "I · The Forest's Edge",
+      title: "A door in the trees",
+      image: "✦",
+      text: "T" + "he trail winds for some minutes before opening into a small clearing. A stone cottage sits there, low-roofed, its single window aglow with candlelight. Smoke curls from the chimney, and the smell of bread — fresh bread — drifts on the air. The door is closed, but a sprig of rosemary has been tied to the latch, fragrant and green.\n\nFrom inside you hear faint humming.",
+      choices: [
+        { text: "Knock politely.", goto: "cottage_welcome" },
+        { text: "Peer in through the window first.", goto: "cottage_window" },
+        { text: "Leave the cottage be and head to the lantern.", goto: "lantern_clearing" }
+      ]
+    },
+    {
+      id: "cottage_window",
+      chapter: "I · The Forest's Edge",
+      title: "The window's view",
+      image: "✶",
+      text: "Y" + "ou step softly through the leaves and lean toward the window. Inside, an elderly woman tends a low fire. On her table: a steaming kettle, two cups, and a small iron key on a leather thong.\n\nShe looks up suddenly, as though she felt your gaze. Her eyes meet yours through the glass — but she only smiles, and gestures toward the door.",
+      choices: [
+        { text: "Step around and knock.", goto: "cottage_welcome" },
+        { text: "Bolt back into the wood, ashamed.", goto: "lantern_clearing", effects: [{ "health": -10 }] }
+      ]
+    },
+    {
+      id: "cottage_welcome",
+      chapter: "II · The Stranger's Hearth",
+      title: "A warm fire, a strange gift",
+      image: "❀",
+      text: "T" + "he door opens before your knuckles touch it. The old woman — sharp-eyed, slow-moving, kind — beckons you in. She presses a cup of tea into your hands without asking, and you find yourself sitting at her hearth, warm for the first time in hours.\n\nShe does not ask your name. Instead, after some quiet, she slides the iron key across the table. \"You will need this,\" she says. \"There is a chest in the wood, beneath the lantern. What's inside is yours, if you are brave enough to ask.\"\n\nWhen you look up to thank her, the cottage door is open again, and the night beyond is darker than you remember.",
+      choices: [
+        { text: "Take the key and step out into the wood.", goto: "lantern_clearing", effects: [{ "add": "iron key" }] }
+      ]
+    },
+    {
+      id: "lantern_clearing",
+      chapter: "II · The Stranger's Hearth",
+      title: "Beneath the lantern",
+      image: "✺",
+      text: "T" + "he wood is colder than you expected, and the lantern, when you reach it, burns blue. It hangs from a low branch over a flat stone. Set into the stone is an iron-bound chest. The lid bears a single keyhole, and around the chest, just visible in the dirt, are footprints in many sizes — none of them yours.\n\nA voice, neither friendly nor cruel, comes from the dark beyond the lantern's glow.\n\n\"Travelers may take what they bring keys for. Or trade for what they don't.\"",
+      choices: [
+        { text: "Use the iron key to open the chest.", goto: "chest_open", requires: "iron key" },
+        { text: "Offer the lucky coin in trade.", goto: "chest_traded", requires: "lucky coin" },
+        { text: "Offer the apple instead.", goto: "chest_apple", requires: "apple" },
+        { text: "Decline and leave the wood.", goto: "village_safety" }
+      ]
+    },
+    {
+      id: "chest_open",
+      chapter: "III · What Was Inside",
+      title: "The chest's gift",
+      image: "❖",
+      text: "T" + "he key fits as if made for it. The lid lifts without a sound. Inside, on a bed of moss, is a small lantern of your own — not blue, but warm gold — and a folded note.\n\nThe note reads, in a careful old hand: \"Light, for those who help one another find the way.\"\n\nWhen you turn to thank the voice, the wood is empty. The lantern in the branch is gone. Only your own light remains, steady in your hand. You walk home, and the path seems shorter than before. In the years that follow, you will pass this lantern to others.",
+      ending: true,
+      endingTitle: "An Honest Ending"
+    },
+    {
+      id: "chest_traded",
+      chapter: "III · What Was Inside",
+      title: "A coin given freely",
+      image: "❀",
+      text: "Y" + "ou place the lucky coin atop the chest. For a moment nothing happens — and then the lid lifts on its own, slowly, as if breathed open.\n\nInside is a single pressed flower, the color of dawn. You take it. The voice, softer now, says only: \"You gave what you valued. So we give what we treasure.\"\n\nThe flower never wilts. Years later, you understand: it was never about the coin.",
+      ending: true,
+      endingTitle: "A Generous Ending",
+      effects: [{ "remove": "lucky coin" }]
+    },
+    {
+      id: "chest_apple",
+      chapter: "III · What Was Inside",
+      title: "A small offering",
+      image: "✦",
+      text: "Y" + "ou set the apple gently on the chest. The voice from the dark is quiet for a long moment. Then it says, gently, \"That was your supper.\"\n\nThe lantern's blue flame flickers, and the chest does not open. But on the way home, an owl flies beside you for a time, and your steps feel lighter than they should. Some kindnesses are kept for later.",
+      ending: true,
+      endingTitle: "A Quiet Ending",
+      effects: [{ "remove": "apple" }]
+    },
+    {
+      id: "village_safety",
+      chapter: "I · The Forest's Edge",
+      title: "Home, before dark",
+      image: "❦",
+      text: "Y" + "ou turn back to the village. The lights of home grow brighter as you walk, and your bed is warm and your supper waiting. Some adventures are for other days. There is no shame in that — only good sense, and a good night's sleep.",
+      ending: true,
+      endingTitle: "A Safe Ending"
+    }
+  ]
+};
+
+//============================================================
+// STATE
+//============================================================
+const STORAGE_KEY = 'wayfarer_v1';
+let story = null;     // currently loaded story
+let session = null;   // {currentSceneId, inventory:[], health, history}
+
+try {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if(saved){
+    const data = JSON.parse(saved);
+    if(data.story) story = data.story;
+    if(data.session) session = data.session;
+  }
+} catch(e){}
+
+if(!story) story = JSON.parse(JSON.stringify(DEFAULT_STORY));
+
+//============================================================
+// SCREEN MANAGEMENT
+//============================================================
+document.querySelectorAll('[data-screen]').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const target = b.dataset.screen;
+    document.querySelectorAll('[data-screen]').forEach(x=>x.classList.toggle('active', x === b));
+    document.getElementById('sceneScreen').classList.toggle('hidden', target !== 'play');
+    document.getElementById('editorScreen').classList.toggle('active', target === 'editor');
+    document.getElementById('frontmatter').style.display = target === 'editor' ? 'none' : '';
+    if(target === 'editor'){
+      document.getElementById('editorText').value = JSON.stringify(story, null, 2);
+    } else if(target === 'play'){
+      // ensure session valid
+      if(!session) startStory();
+      else renderScene();
+    }
+  });
+});
+
+document.getElementById('loadStoryBtn').addEventListener('click', ()=> document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      validateStory(data);
+      story = data;
+      session = null;
+      startStory();
+      persist();
+      switchToPlay();
+    } catch(err) {
+      alert('Could not load story: ' + err.message);
+    }
+  };
+  reader.readAsText(f);
+  e.target.value = '';
+});
+
+function switchToPlay(){
+  document.querySelectorAll('[data-screen]').forEach(x=>x.classList.toggle('active', x.dataset.screen === 'play'));
+  document.getElementById('sceneScreen').classList.remove('hidden');
+  document.getElementById('editorScreen').classList.remove('active');
+  document.getElementById('frontmatter').style.display = '';
+}
+
+//============================================================
+// VALIDATION
+//============================================================
+function validateStory(s){
+  if(!s.scenes || !Array.isArray(s.scenes)) throw new Error('Missing "scenes" array');
+  if(!s.start) throw new Error('Missing "start" field');
+  const ids = new Set(s.scenes.map(sc=>sc.id));
+  if(!ids.has(s.start)) throw new Error('start scene id "'+s.start+'" not found');
+  s.scenes.forEach(sc=>{
+    if(!sc.id) throw new Error('Scene missing id');
+    if(!sc.text) throw new Error(`Scene "${sc.id}" missing text`);
+    if(sc.choices) sc.choices.forEach(c=>{
+      if(c.goto && !ids.has(c.goto)) throw new Error(`Choice in "${sc.id}" goes to nonexistent scene "${c.goto}"`);
+    });
+  });
+  return true;
+}
+
+//============================================================
+// STORY LIFECYCLE
+//============================================================
+function startStory(){
+  session = {
+    currentSceneId: story.start,
+    inventory: ['apple', 'lucky coin'],   // starting items for default story
+    health: 100,
+    history: [story.start]
+  };
+  // Custom stories can override starting inventory via story.startInventory
+  if(Array.isArray(story.startInventory)) session.inventory = story.startInventory.slice();
+  if(typeof story.startHealth === 'number') session.health = story.startHealth;
+  // Don't include items for non-default stories
+  if(story.title !== DEFAULT_STORY.title && !story.startInventory) session.inventory = [];
+
+  // Update title
+  document.getElementById('bookTitle').innerHTML = formatBookTitle(story.title);
+  document.getElementById('bookSubtitle').textContent = story.subtitle || '';
+  persist();
+  renderScene();
+}
+
+function formatBookTitle(t){
+  // Just escape it
+  return escapeHtml(t);
+}
+
+function getScene(id){
+  return story.scenes.find(s=>s.id===id);
+}
+
+//============================================================
+// RENDER SCENE
+//============================================================
+function renderScene(){
+  if(!session) return startStory();
+  const scene = getScene(session.currentSceneId);
+  if(!scene){
+    document.getElementById('sceneTitle').textContent = 'Lost in the wood';
+    document.getElementById('sceneText').innerHTML = '<p>The story has reached an unknown place. The author may not have written this yet.</p>';
+    document.getElementById('choicesList').innerHTML = '';
+    document.getElementById('restartRow').style.display = 'flex';
+    document.getElementById('restartRow').innerHTML = '<button class="restart-btn" id="restartBtn">Begin again</button>';
+    document.getElementById('restartBtn').addEventListener('click', startStory);
+    return;
+  }
+
+  document.getElementById('sceneMeta').textContent = scene.chapter || '';
+  document.getElementById('sceneTitle').textContent = scene.title || '';
+  document.getElementById('sceneImage').innerHTML = scene.image ? `<span class="glyph">${escapeHtml(scene.image)}</span>` : '';
+  document.getElementById('sceneText').innerHTML = scene.text.split(/\n\n+/).map(p=>`<p>${escapeHtml(p)}</p>`).join('');
+
+  // Apply scene-level effects (only first time visiting? we apply whenever the scene becomes active)
+  if(scene.effects && !scene._applied){
+    applyEffects(scene.effects);
+    scene._applied = true;
+  }
+
+  renderStatusbar();
+
+  // Choices
+  const choicesList = document.getElementById('choicesList');
+  const endingNote = document.getElementById('endingNote');
+  const restartRow = document.getElementById('restartRow');
+
+  if(scene.ending){
+    choicesList.innerHTML = '';
+    endingNote.style.display = 'block';
+    endingNote.innerHTML = `<span class="underline">${escapeHtml(scene.endingTitle || 'The End')}</span>`;
+    restartRow.style.display = 'flex';
+    restartRow.innerHTML = '<button class="restart-btn" id="restartBtn">Begin again</button> <button class="restart-btn ghost" id="rewindBtn">Rewind one step</button>';
+    document.getElementById('restartBtn').addEventListener('click', startStory);
+    document.getElementById('rewindBtn').addEventListener('click', rewindOne);
+    return;
+  }
+
+  endingNote.style.display = 'none';
+
+  if(!scene.choices || scene.choices.length === 0){
+    choicesList.innerHTML = '<p style="text-align:center;font-style:italic;color:var(--ink-faint);padding:14px">— the path ends here —</p>';
+    restartRow.style.display = 'flex';
+    restartRow.innerHTML = '<button class="restart-btn" id="restartBtn">Begin again</button>';
+    document.getElementById('restartBtn').addEventListener('click', startStory);
+    return;
+  }
+
+  choicesList.innerHTML = scene.choices.map((c,i)=>{
+    const blocked = c.requires && !session.inventory.includes(c.requires);
+    return `<button class="choice ${blocked?'disabled':''}" data-i="${i}" ${blocked?'disabled':''}>
+      ${escapeHtml(c.text)}
+      ${c.requires ? `<span class="req">requires: ${escapeHtml(c.requires)}${blocked?' (you don\'t have this)':''}</span>` : ''}
+    </button>`;
+  }).join('');
+
+  choicesList.querySelectorAll('.choice').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(btn.disabled) return;
+      const idx = parseInt(btn.dataset.i);
+      const choice = scene.choices[idx];
+      if(choice.effects) applyEffects(choice.effects);
+      session.history.push(choice.goto);
+      session.currentSceneId = choice.goto;
+      // Reset _applied flag on the new scene so its effects fire
+      const next = getScene(choice.goto);
+      if(next) next._applied = false;
+      persist();
+      renderScene();
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+  });
+
+  restartRow.style.display = session.history.length > 1 ? 'flex' : 'none';
+  if(session.history.length > 1){
+    restartRow.innerHTML = '<button class="restart-btn ghost" id="rewindBtn">Rewind one step</button>';
+    document.getElementById('rewindBtn').addEventListener('click', rewindOne);
+  }
+}
+
+function rewindOne(){
+  if(session.history.length < 2) return;
+  session.history.pop();
+  session.currentSceneId = session.history[session.history.length-1];
+  // Note: rewinding doesn't perfectly reverse effects (would need event log).
+  // For the scope of this engine, rewind is a "narrative undo" only.
+  persist();
+  renderScene();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+//============================================================
+// EFFECTS
+//============================================================
+function applyEffects(effects){
+  effects.forEach(e=>{
+    if(e.add){
+      if(!session.inventory.includes(e.add)) session.inventory.push(e.add);
+    }
+    if(e.remove){
+      session.inventory = session.inventory.filter(i=>i!==e.remove);
+    }
+    if(typeof e.health === 'number'){
+      session.health = Math.max(0, Math.min(100, session.health + e.health));
+    }
+  });
+}
+
+//============================================================
+// STATUS BAR
+//============================================================
+function renderStatusbar(){
+  const sb = document.getElementById('statusbar');
+  // Only show if we have something useful
+  const hasInv = session.inventory.length > 0;
+  const showHealth = session.health < 100 || (story.startHealth && story.startHealth < 100);
+  if(!hasInv && !showHealth){
+    sb.innerHTML = '';
+    sb.style.display = 'none';
+    return;
+  }
+  sb.style.display = 'flex';
+  let html = '';
+  html += `<div class="status-block">
+    <span class="label">Carrying</span>
+    <span class="body inventory-list">${
+      hasInv
+        ? session.inventory.map(i=>`<span class="item">${escapeHtml(i)}</span>`).join('')
+        : '<span class="empty">— nothing —</span>'
+    }</span>
+  </div>`;
+  if(showHealth){
+    html += `<div class="status-block">
+      <span class="label">Vigor</span>
+      <span class="body" style="display:flex;align-items:center;gap:10px">
+        <span class="health-bar"><span class="fill" style="width:${session.health}%"></span></span>
+        <span>${session.health}</span>
+      </span>
+    </div>`;
+  }
+  sb.innerHTML = html;
+}
+
+//============================================================
+// EDITOR
+//============================================================
+document.getElementById('loadInEditorBtn').addEventListener('click', ()=>{
+  const text = document.getElementById('editorText').value;
+  const errBox = document.getElementById('editorErr');
+  errBox.innerHTML = '';
+  try {
+    const data = JSON.parse(text);
+    validateStory(data);
+    story = data;
+    startStory();
+    persist();
+    switchToPlay();
+  } catch(err){
+    errBox.innerHTML = `<div class="err">⚠ ${escapeHtml(err.message)}</div>`;
+  }
+});
+document.getElementById('exportStoryBtn').addEventListener('click', ()=>{
+  const data = document.getElementById('editorText').value || JSON.stringify(story, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${(story.title||'story').toLowerCase().replace(/\s+/g,'-')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('resetEditorBtn').addEventListener('click', ()=>{
+  if(!confirm('Reset editor to the default story?')) return;
+  document.getElementById('editorText').value = JSON.stringify(DEFAULT_STORY, null, 2);
+  document.getElementById('editorErr').innerHTML = '';
+});
+
+//============================================================
+// HELPERS
+//============================================================
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+function persist(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ story, session })); }catch(e){}
+}
+
+//============================================================
+// INIT
+//============================================================
+document.getElementById('bookTitle').innerHTML = formatBookTitle(story.title);
+document.getElementById('bookSubtitle').textContent = story.subtitle || '';
+if(!session) startStory();
+else renderScene();
+</script>
+</body>
+</html>
